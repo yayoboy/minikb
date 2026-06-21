@@ -1,5 +1,6 @@
-// minikb — firmware completo (PlatformIO / arduino-pico + TinyUSB).
-// Tastiera USB HID 5x11 + layer Fn + tasti media (Consumer Control) + LED stato WS2812.
+// minikb — firmware v1.1 (PlatformIO / arduino-pico + TinyUSB).
+// USB HID 5x11 (3 layer) + joystick (frecce / mouse) + media + LED stato WS2812 + I2C CardKB.
+// v1.1: modalita' mouse (Fn tenuto 2s) -> joystick come mouse, solo USB.
 //
 // Hardware confermato:
 //   Colonne COL0..COL10 = GP0..GP10   (lette, INPUT_PULLUP)
@@ -90,12 +91,14 @@ static const uint16_t keymap[3][NROWS * NCOLS] = {
 };
 
 // ---------------------------------------------------------------- USB HID
-enum { RID_KEYBOARD = 1, RID_CONSUMER = 2 };
+enum { RID_KEYBOARD = 1, RID_CONSUMER = 2, RID_MOUSE = 3 };
 static const uint8_t desc_hid_report[] = {
   TUD_HID_REPORT_DESC_KEYBOARD(HID_REPORT_ID(RID_KEYBOARD)),
   TUD_HID_REPORT_DESC_CONSUMER(HID_REPORT_ID(RID_CONSUMER)),
+  TUD_HID_REPORT_DESC_MOUSE(HID_REPORT_ID(RID_MOUSE)),
 };
 Adafruit_USBD_HID usb_hid;
+static bool mouseMode = false;   // v1.1: joystick come mouse (Fn tenuto 2s on/off)
 
 // ---------------------------------------------------------------- LED stato
 Adafruit_NeoPixel led(1, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -107,10 +110,11 @@ static void hid_led_cb(uint8_t /*id*/, hid_report_type_t /*type*/, uint8_t const
   capsOn = (buf[0] & 0x02) != 0;
 }
 
-// LED acceso SOLO se Fn / Sym / Shift attivi, oppure Caps Lock. Spento altrimenti.
+// LED: modalita' mouse = ciano (priorita'); poi Caps/Sym/Fn/Shift. Spento altrimenti.
 static void setStatusLed(bool fnActive, bool symActive, bool shiftHeld) {
   uint32_t c;
-  if (capsOn)         c = led.Color(60, 0, 0);   // rosso  = Caps Lock
+  if (mouseMode)      c = led.Color(0, 40, 50);  // ciano  = modalita' mouse
+  else if (capsOn)    c = led.Color(60, 0, 0);   // rosso  = Caps Lock
   else if (symActive) c = led.Color(0, 40, 0);   // verde  = layer Sym
   else if (fnActive)  c = led.Color(0, 0, 60);   // blu    = layer Fn
   else if (shiftHeld) c = led.Color(50, 30, 0);  // giallo = Shift tenuto
@@ -229,6 +233,21 @@ static void buildAndSend() {
       }
   uint8_t layer = symActive ? 2 : (fnActive ? 1 : 0);
 
+  // conteggio tasti/joystick premuti (per il gesto Fn-da-solo)
+  uint8_t pressedCount = 0;
+  for (uint8_t r = 0; r < NROWS; r++)
+    for (uint8_t c = 0; c < NCOLS; c++) if (state[r][c]) pressedCount++;
+  bool joyAny = false;
+  for (uint8_t i = 0; i < NJOY; i++) if (joyState[i]) joyAny = true;
+
+  // v1.1: Fn tenuto da solo per 2s -> commuta modalita' mouse
+  static uint32_t fnHoldStart = 0; static bool fnHoldDone = false;
+  bool fnOnly = fnActive && pressedCount == 1 && !joyAny;
+  if (fnOnly) {
+    if (fnHoldStart == 0) fnHoldStart = millis();
+    else if (!fnHoldDone && millis() - fnHoldStart >= 2000) { mouseMode = !mouseMode; fnHoldDone = true; }
+  } else { fnHoldStart = 0; fnHoldDone = false; }
+
   uint8_t mods = 0;
   uint8_t kc[6] = {0};
   uint8_t nkc = 0;
@@ -252,9 +271,10 @@ static void buildAndSend() {
     }
   }
 
-  // joystick -> frecce
-  for (uint8_t i = 0; i < NJOY; i++)
-    if (joyState[i] && nkc < 6) kc[nkc++] = JOY_ARROW[i];
+  // joystick -> frecce (solo se NON in modalita' mouse)
+  if (!mouseMode)
+    for (uint8_t i = 0; i < NJOY; i++)
+      if (joyState[i] && nkc < 6) kc[nkc++] = JOY_ARROW[i];
 
   // --- canale I2C CardKB: accoda 1 byte ASCII su ogni nuova pressione ---
   static bool i2cPrev[NROWS][NCOLS];
@@ -264,6 +284,7 @@ static void buildAndSend() {
       if (now && !i2cPrev[r][c]) i2cPush(asciiFor(layer, r * NCOLS + c, shiftHeld));
       i2cPrev[r][c] = now;
     }
+  // I2C CardKB: il joystick resta SEMPRE frecce (la modalita' mouse e' solo USB)
   static bool joyPrevI2C[NJOY];
   for (uint8_t i = 0; i < NJOY; i++) {
     if (joyState[i] && !joyPrevI2C[i]) i2cPush(JOY_I2C[i]);
@@ -283,6 +304,30 @@ static void buildAndSend() {
     if (usb_hid.ready()) {
       usb_hid.sendReport16(RID_CONSUMER, consumer); // 0 = rilascio
       lastConsumer = consumer;
+    }
+  }
+
+  // --- v1.1 modalita' mouse (solo USB): joystick = cursore, PUSH = click ---
+  if (mouseMode) {
+    static uint32_t lastMs = 0; static int accel = 0; static uint8_t lastBtn = 0;
+    int dx = 0, dy = 0;
+    if (joyState[2]) dx -= 1;   // LEFT
+    if (joyState[3]) dx += 1;   // RIGHT
+    if (joyState[0]) dy -= 1;   // UP
+    if (joyState[1]) dy += 1;   // DOWN
+    uint8_t btn = joyState[4] ? (symActive ? MOUSE_BUTTON_RIGHT : MOUSE_BUTTON_LEFT) : 0;
+    uint32_t now = millis();
+    if (now - lastMs >= 8 && usb_hid.ready()) {
+      lastMs = now;
+      if (dx || dy) {
+        if (accel < 48) accel++;
+        int sp = 1 + accel / 6; if (sp > 9) sp = 9;     // accelerazione
+        usb_hid.mouseReport(RID_MOUSE, btn, dx * sp, dy * sp, 0, 0);
+        lastBtn = btn;
+      } else {
+        accel = 0;
+        if (btn != lastBtn) { usb_hid.mouseReport(RID_MOUSE, btn, 0, 0, 0, 0); lastBtn = btn; }
+      }
     }
   }
 

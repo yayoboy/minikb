@@ -49,6 +49,15 @@ confronto tra basi tecnologiche differenti.
 
 ---
 
+## Anteprima del layout
+
+![Layout minikb](docs/keymap_layout.svg)
+
+> Centro = layer **BASE** · alto-destra (blu) = **Sym** · basso-destra (grigio) = **Fn**.
+> Joystick integrato in basso a sinistra. Mappa modificabile da [`docs/keymap_editor.html`](docs/keymap_editor.html).
+
+---
+
 ## Caratteristiche
 
 - ⌨️ **55 tasti** in matrice 5×11 con **diodo per-tasto** → N-Key Rollover (NKRO).
@@ -128,7 +137,8 @@ Il firmware funzionante, **collaudato su hardware**, è in [`minikb_fw_v1/`](min
 
 - Tastiera **USB HID** 5×11 con 3 layer (BASE / Fn / Sym) mappati per il layout host.
 - **Joystick** TM-2028 → frecce + Invio.
-- **LED di stato** WS2812 (Caps/Sym/Fn/Shift).
+- **Modalità mouse** (v1.1, solo USB): Fn tenuto 2 s → joystick come mouse (cursore + click sx/dx).
+- **LED di stato** WS2812 (mouse/Caps/Sym/Fn/Shift).
 - **Slave I2C compatibile CardKB** (`0x5F`) — 1 byte ASCII per tasto, in parallelo all'USB.
 
 ### Build e flash
@@ -201,6 +211,7 @@ Fn (raise): F1–F12 · frecce su I/J/K/L · media su Z/X/C/V · volume su W/S �
 | Hardware (PCB, Gerber, schematico) | ✅ completo |
 | Firmware `minikb_fw_v1` — tastiera USB HID | ✅ compilato e collaudato su hardware |
 | Firmware `minikb_fw_v1` — joystick + LED | ✅ collaudati su hardware |
+| Firmware `minikb_fw_v1` — modalità mouse (v1.1) | ✅ collaudata su hardware |
 | Firmware `minikb_fw_v1` — I2C CardKB (0x5F) | ✅ implementato · ⏳ da collaudare con un master I2C |
 
 ---
