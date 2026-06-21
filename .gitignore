@@ -1,0 +1,14 @@
+build/
+*.uf2
+*.elf
+*.bin
+*.dis
+__pycache__/
+.DS_Store
+.pio/
+
+# firmware non collaudati su hardware (esclusi dal repo: il funzionante e' minikb_fw_v1/)
+/firmware/
+
+# note di lavoro interne
+/tasks/

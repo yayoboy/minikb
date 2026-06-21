@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>minikb — editor keymap</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--key:#222732;--txt:#e6e9ef;--muted:#5b6473;
+    --accent:#3b82f6;--layerk:#a855f7;--mod:#f59e0b;--media:#10b981;--empty:#1b1e25;--sel:#2563eb}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;padding:24px}
+  h1{font-size:20px;margin:0 0 4px}.sub{color:var(--muted);margin:0 0 18px;max-width:820px}
+  h2{font-size:15px;margin:22px 0 8px}
+  .board{display:inline-grid;grid-template-columns:repeat(11,60px);gap:5px;background:var(--panel);padding:10px;border-radius:12px}
+  .k{height:50px;background:var(--key);border-radius:7px;display:flex;align-items:center;justify-content:center;
+     font-weight:600;font-size:13px;border:1px solid #2c3340;cursor:pointer;text-align:center;padding:2px;overflow:hidden}
+  .k:hover{border-color:var(--accent)}
+  .k.sel{outline:2px solid var(--sel);outline-offset:1px}
+  .empty{background:var(--empty);color:#39404d;border-style:dashed}
+  .layerk{background:#2a1f3a;border-color:var(--layerk);color:#d8b4fe}
+  .mod{background:#332611;border-color:var(--mod);color:#fcd34d}
+  .media{background:#0f2a22;border-color:var(--media);color:#6ee7b7}
+  .combo{background:#10243a;border-color:#38bdf8;color:#7dd3fc}
+  .small{font-size:11px}
+  .seclabel{color:var(--muted);font-size:11px;margin:12px 0 4px}
+  .mods{display:flex;gap:6px;margin:4px 0}
+  .mods label{flex:1;display:flex;align-items:center;justify-content:center;gap:3px;padding:6px 0;background:var(--key);border:1px solid #2c3340;border-radius:6px;cursor:pointer;font-size:12px;user-select:none}
+  .mods input{margin:0}
+  #editor{position:fixed;right:24px;top:24px;width:280px;background:var(--panel);border:1px solid #2c3340;border-radius:12px;padding:16px;display:none}
+  #editor h3{margin:0 0 10px;font-size:14px}
+  #editor input{width:100%;padding:8px;background:#0f1115;border:1px solid #2c3340;color:var(--txt);border-radius:7px;font-size:16px;text-align:center}
+  .hint{color:var(--muted);font-size:11px;margin:6px 0 12px}
+  .palette{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;max-height:300px;overflow:auto}
+  .palette button{padding:6px 4px;background:var(--key);border:1px solid #2c3340;color:var(--txt);border-radius:6px;cursor:pointer;font-size:11px}
+  .palette button:hover{border-color:var(--accent)}
+  .row2{display:flex;gap:6px;margin-top:10px}
+  .row2 button{flex:1;padding:8px;border-radius:7px;border:1px solid #2c3340;background:var(--key);color:var(--txt);cursor:pointer}
+  .toolbar{margin:18px 0;display:flex;gap:10px;align-items:center}
+  .toolbar button{padding:9px 14px;border-radius:8px;border:1px solid #2c3340;background:var(--accent);color:#fff;cursor:pointer;font-weight:600}
+  .toolbar button.ghost{background:var(--key);color:var(--txt)}
+  textarea{width:100%;height:120px;background:#0f1115;border:1px solid #2c3340;color:var(--txt);border-radius:8px;padding:10px;font-family:ui-monospace,monospace;font-size:12px;margin-top:8px}
+  .legend{color:var(--muted);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>minikb — editor keymap</h1>
+<p class="sub">Clicca una cella, poi <b>scrivi un carattere</b> (es. <code>a @ è ; 5</code>) oppure scegli una <b>funzione</b>.
+I caratteri sono tradotti automaticamente al layout <b>Italian - Pro</b>. Quando hai finito premi <b>Esporta</b> e incollami il JSON.</p>
+
+<div id="boards"></div>
+
+<div class="toolbar">
+  <button onclick="exportJSON()">⬇ Esporta JSON</button>
+  <button class="ghost" onclick="resetMap()">↺ Ripristina mappa attuale</button>
+  <span class="legend">viola=layer · arancio=modificatore · verde=media · tratteggio=trasparente</span>
+</div>
+<textarea id="out" placeholder="Il JSON appare qui dopo Esporta — copialo e incollalo nella chat"></textarea>
+
+<div id="editor">
+  <h3 id="ed-title">Tasto</h3>
+  <input id="ed-input" maxlength="2" placeholder="scrivi un carattere">
+  <div class="hint">Premi Invio per confermare il carattere, oppure scegli sotto.</div>
+
+  <div class="seclabel">SCORCIATOIE (macOS)</div>
+  <div class="palette" id="ed-shortcuts"></div>
+
+  <div class="seclabel">COMBO PERSONALIZZATA</div>
+  <div class="mods">
+    <label><input type="checkbox" id="m-G">⌘</label>
+    <label><input type="checkbox" id="m-C">⌃</label>
+    <label><input type="checkbox" id="m-A">⌥</label>
+    <label><input type="checkbox" id="m-S">⇧</label>
+  </div>
+  <input id="ed-combokey" maxlength="1" placeholder="tasto della combo (es. c)">
+  <div class="row2"><button onclick="applyCombo()">Applica combo</button></div>
+
+  <div class="seclabel">FUNZIONI</div>
+  <div class="palette" id="ed-palette"></div>
+  <div class="row2">
+    <button onclick="setCell('')">Trasparente</button>
+    <button onclick="setCell('—')">Vuoto</button>
+  </div>
+  <div class="row2"><button onclick="closeEd()">Chiudi</button></div>
+</div>
+
+<script>
+const NCOLS=11, NROWS=5;
+// token: "" = trasparente, "—" = vuoto, "@XXX" = funzione, altrimenti carattere letterale
+const DEFAULT = {
+ base:[
+  "1","2","3","4","5","6","7","8","9","0","@BSPC",
+  "@TAB","q","w","e","r","t","y","u","i","o","p",
+  "@CAPS","a","s","d","f","g","h","j","k","l","@ENTER",
+  "@SHIFT","z","x","c","v","b","n","m",",",".","/",
+  "@FN","@SYM",";","'","-","@SPACE","@BSPC","=","[","]","\\"],
+ fn:[
+  "@F1","@F2","@F3","@F4","@F5","@F6","@F7","@F8","@F9","@F10","@DEL",
+  "@F11","@F12","","","","","","@PGUP","@HOME","","@PRTSC",
+  "","","@VOLD","@VOLU","","","","@PGDN","@END","","",
+  "","@MUTE","@PLAY","@PREV","@NEXT","","","","","","",
+  "@FN","@SYM","","","","","","","","",""],
+ sym:[
+  "@ESC","","","","","","","","","","@DEL",
+  "`","","","","","","","","","","",
+  "","@CTRL","@ALT","@GUI","","","","","","","",
+  "","","","","","","","","","","",
+  "@FN","@SYM","","","","","","","","",""],
+};
+const FUNCS = ["@ESC","@TAB","@ENTER","@BSPC","@DEL","@SPACE","@CAPS","@SHIFT","@CTRL","@ALT","@GUI",
+ "@F1","@F2","@F3","@F4","@F5","@F6","@F7","@F8","@F9","@F10","@F11","@F12",
+ "@UP","@DOWN","@LEFT","@RIGHT","@HOME","@END","@PGUP","@PGDN","@PRTSC",
+ "@VOLU","@VOLD","@MUTE","@PLAY","@PREV","@NEXT","@FN","@SYM"];
+// preset scorciatoie macOS: [etichetta, token]. token combo = "#<mods>+<key>" (G=Cmd C=Ctrl A=Opt S=Shift)
+const SHORTCUTS=[
+ ["Copia","#G+c"],["Taglia","#G+x"],["Incolla","#G+v"],["Annulla","#G+z"],
+ ["Ripeti","#GS+z"],["Sel.tutto","#G+a"],["Salva","#G+s"],["Cerca","#G+f"],
+ ["Nuova tab","#G+t"],["Chiudi","#G+w"],["Switch app","#G+\t"]];
+const MODSYM={G:"⌘",C:"⌃",A:"⌥",S:"⇧"};
+const LAYERS=[["base","BASE"],["fn","Fn"],["sym","Sym"]];
+let map = JSON.parse(JSON.stringify(DEFAULT));
+let cur = null; // {layer, idx}
+
+function classFor(tok){
+  if(tok==="") return "empty"; if(tok==="—") return "empty";
+  if(tok.startsWith("#")) return "combo";
+  if(tok==="@FN"||tok==="@SYM") return "layerk";
+  if(["@CTRL","@ALT","@GUI","@SHIFT","@CAPS"].includes(tok)) return "mod";
+  if(["@VOLU","@VOLD","@MUTE","@PLAY","@PREV","@NEXT"].includes(tok)) return "media";
+  return "";
+}
+function comboLabel(tok){ // "#G+c" -> "⌘C"
+  const m=tok.slice(1).split("+"); const mods=m[0], key=m.slice(1).join("+");
+  let s=""; for(const ch of mods) s+=MODSYM[ch]||"";
+  let k=key; if(k==="\t")k="⇥"; else if(k.length===1)k=k.toUpperCase();
+  return s+k;
+}
+function labelFor(tok){
+  if(tok==="") return ""; if(tok==="—") return "—";
+  if(tok.startsWith("#")) return comboLabel(tok);
+  if(tok.startsWith("@")) return tok.slice(1).replace("BSPC","Bksp").replace("ENTER","Enter")
+     .replace("SPACE","Space").replace("PRTSC","PrtSc");
+  return tok;
+}
+function applyCombo(){
+  let mods=""; for(const x of ["G","C","A","S"]) if(document.getElementById("m-"+x).checked) mods+=x;
+  const key=document.getElementById("ed-combokey").value;
+  if(!mods || !key){ alert("Scegli almeno un modificatore e un tasto."); return; }
+  setCell("#"+mods+"+"+key);
+}
+function render(){
+  const root=document.getElementById("boards"); root.innerHTML="";
+  for(const [key,name] of LAYERS){
+    const h=document.createElement("h2"); h.textContent=name; root.appendChild(h);
+    const b=document.createElement("div"); b.className="board";
+    map[key].forEach((tok,idx)=>{
+      const d=document.createElement("div");
+      const cl=classFor(tok);
+      d.className="k "+(cl)+(cur&&cur.layer===key&&cur.idx===idx?" sel":"");
+      const lab=labelFor(tok); d.innerHTML = lab.length>3?`<span class="small">${lab}</span>`:lab;
+      d.onclick=()=>openEd(key,idx);
+      b.appendChild(d);
+    });
+    root.appendChild(b);
+  }
+}
+function openEd(layer,idx){
+  cur={layer,idx};
+  document.getElementById("editor").style.display="block";
+  document.getElementById("ed-title").textContent=`${layer.toUpperCase()} · cella ${Math.floor(idx/NCOLS)},${idx%NCOLS}`;
+  const inp=document.getElementById("ed-input");
+  const v=map[layer][idx];
+  inp.value = (v && !v.startsWith("@") && v!=="—")? v : "";
+  inp.focus();
+  render();
+}
+function setCell(tok){ if(!cur) return; map[cur.layer][cur.idx]=tok; render(); }
+function closeEd(){ document.getElementById("editor").style.display="none"; cur=null; render(); }
+function exportJSON(){ document.getElementById("out").value=JSON.stringify(map); }
+function resetMap(){ map=JSON.parse(JSON.stringify(DEFAULT)); closeEd(); render(); }
+
+document.getElementById("ed-input").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){ const c=e.target.value; if(c) setCell(c); e.preventDefault(); }
+});
+const pal=document.getElementById("ed-palette");
+FUNCS.forEach(f=>{ const btn=document.createElement("button"); btn.textContent=labelFor(f);
+  btn.onclick=()=>setCell(f); pal.appendChild(btn); });
+const sc=document.getElementById("ed-shortcuts");
+SHORTCUTS.forEach(([lbl,tok])=>{ const btn=document.createElement("button");
+  btn.textContent=lbl; btn.title=comboLabel(tok); btn.onclick=()=>setCell(tok); sc.appendChild(btn); });
+render();
+</script>
+</body>
+</html>

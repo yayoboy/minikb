@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>minikb — Layer</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --key:#222732; --txt:#e6e9ef; --muted:#5b6473;
+    --accent:#3b82f6; --layerk:#a855f7; --mod:#f59e0b; --media:#10b981; --empty:#1b1e25;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;padding:24px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 22px}
+  h2{font-size:16px;margin:26px 0 10px;display:flex;align-items:center;gap:10px}
+  .tag{font-size:11px;color:var(--muted);font-weight:400}
+  .board{display:inline-grid;grid-template-columns:repeat(11,64px);gap:6px;background:var(--panel);padding:12px;border-radius:12px}
+  .k{height:54px;background:var(--key);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+     font-weight:600;font-size:14px;border:1px solid #2c3340;padding:2px;text-align:center}
+  .k small{font-weight:400;color:var(--muted);font-size:10px}
+  .empty{background:var(--empty);color:#39404d;border-style:dashed}
+  .layerk{background:#2a1f3a;border-color:var(--layerk);color:#d8b4fe}
+  .mod{background:#332611;border-color:var(--mod);color:#fcd34d}
+  .media{background:#0f2a22;border-color:var(--media);color:#6ee7b7}
+  .wide{font-size:12px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0 0;color:var(--muted);font-size:12px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid #2c3340}
+  .joy{margin-top:18px;background:var(--panel);border-radius:12px;padding:14px 16px;display:inline-block}
+  .joy b{color:var(--accent)}
+  .note{color:var(--muted);font-size:12px;margin-top:8px;max-width:760px}
+</style>
+</head>
+<body>
+<h1>minikb — mappa dei layer</h1>
+<p class="sub">Matrice 5×11 ortholineare · firmware PlatformIO/Arduino · layout host: <b>Italian - Pro</b> (i simboli mostrati sono quelli che escono davvero)</p>
+
+<div id="app"></div>
+
+<div class="joy">
+  <h2 style="margin:0 0 8px">🕹️ Joystick (TM-2028)</h2>
+  Su = <b>↑</b> · Giù = <b>↓</b> · Sinistra = <b>←</b> · Destra = <b>→</b> · Centro (PUSH) = <b>Invio</b>
+  <div class="note">Sostituisce i tasti freccia (che infatti non sono sulla tastiera).</div>
+</div>
+
+<script>
+const EMPTY="·";
+// legenda tipi: layer=tasto di layer, mod=modificatore, media=multimediale
+const layers = [
+  { name:"BASE", tag:"scrittura + punteggiatura",
+    rows:[
+      ["1","2","3","4","5","6","7","8","9","0",["Bksp","backspace"]],
+      [["Tab",""],"Q","W","E","R","T","Y","U","I","O","P"],
+      [["Caps","caps lock","mod"],"A","S","D","F","G","H","J","K","L",["Enter","invio"]],
+      [["Shift","","mod"],"Z","X","C","V","B","N","M",",",".","/"],
+      [["Fn","layer","layer"],["Sym","layer","layer"],";","'","-",["Space","spazio"],["Bksp","backspace"],"=","[","]","\\"],
+    ]},
+  { name:"Fn", tag:"tieni Fn · funzioni, media, navigazione",
+    rows:[
+      ["F1","F2","F3","F4","F5","F6","F7","F8","F9","F10",["Del","canc"]],
+      ["F11","F12",EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,["PgUp",""],["Home",""],EMPTY,["PrtSc",""]],
+      [EMPTY,EMPTY,["Vol-","","media"],["Vol+","","media"],EMPTY,EMPTY,EMPTY,["PgDn",""],["End",""],EMPTY,EMPTY],
+      [EMPTY,["Mute","","media"],["Play","","media"],["Prev","","media"],["Next","","media"],EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],
+      [["Fn","layer","layer"],["Sym","layer","layer"],EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],
+    ]},
+  { name:"Sym", tag:"tieni Sym · Esc, modificatori, backtick",
+    rows:[
+      [["Esc",""],EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,["Del","canc"]],
+      ["`",EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],
+      [EMPTY,["Ctrl","","mod"],["Alt","","mod"],["GUI","cmd","mod"],EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],
+      [EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],
+      [["Fn","layer","layer"],["Sym","layer","layer"],EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY,EMPTY],
+    ]},
+];
+
+function keyEl(cell){
+  let label=cell, sub="", cls="";
+  if(Array.isArray(cell)){ label=cell[0]; sub=cell[1]||""; cls=cell[2]||""; }
+  const d=document.createElement("div");
+  d.className="k"+(label===EMPTY?" empty":"")+(cls?" "+cls:"")+(label.length>2?" wide":"");
+  d.innerHTML = label===EMPTY ? "" : (sub? `${label}<small>${sub}</small>` : label);
+  return d;
+}
+const app=document.getElementById("app");
+for(const L of layers){
+  const h=document.createElement("h2");
+  h.innerHTML=`${L.name} <span class="tag">— ${L.tag}</span>`;
+  app.appendChild(h);
+  const b=document.createElement("div"); b.className="board";
+  for(const row of L.rows) for(const c of row) b.appendChild(keyEl(c));
+  app.appendChild(b);
+}
+const leg=document.createElement("div"); leg.className="legend";
+leg.innerHTML=`
+ <span><i class="sw layerk"></i> tasto di layer (Fn/Sym)</span>
+ <span><i class="sw mod"></i> modificatore</span>
+ <span><i class="sw media"></i> multimediale</span>
+ <span><i class="sw empty"></i> trasparente (ricade su BASE)</span>`;
+app.appendChild(leg);
+</script>
+</body>
+</html>
