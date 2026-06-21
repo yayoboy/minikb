@@ -23,19 +23,37 @@ Mappa modificabile dall'editor visuale: [`docs/keymap_editor.html`](../docs/keym
 
 ---
 
-## Hardware (pin confermati su board reale)
+## Hardware — pinout completo della board
 
-| Funzione | GPIO |
-|----------|------|
-| Colonne COL0..COL10 | GP0–GP10 (input pull-up) |
-| Righe ROW0..ROW4 | GP12–GP16 (pilotate LOW) |
-| Diodi | COL2ROW (riga LOW, colonna LOW = premuto) |
-| LED WS2812 (DIN) | **GP28** (via R1 300 Ω) |
-| I2C CardKB slave (0x5F) | SDA=GP20, SCL=GP21 |
-| Joystick TM-2028 (comune GND, attivo-basso) | UP=GP26, DOWN=GP29, LEFT=GP11, RIGHT=GP27, PUSH=GP22 |
+Cosa è montato sulla board:
 
-> Note verificate a mano: il LED è su **GP28** (non GP29 come indicava la doc) e il pinout del
-> modulo joystick è **ruotato** rispetto allo schematico — i valori qui sopra sono quelli reali.
+- **55 switch meccanici** (MX1–MX55) in matrice **5×11**, un **diodo per tasto** (COL2ROW) → NKRO.
+- **Joystick a 5 vie TM-2028** (U2): 4 direzioni + pressione centrale, **comune a GND**.
+- **LED RGB WS2812** (LED1) di stato, DIN via R1 300 Ω.
+- **Header I2C 4 pin** (tipo CardKB/Grove): SDA, SCL, +V, GND.
+
+Pinout RP2040 — tutti i pin **confermati su hardware**:
+
+| GPIO | Collegato a | Note |
+|------|-------------|------|
+| GP0–GP10 | Matrice — **colonne** COL0..COL10 | input pull-up, lette |
+| GP11 | Joystick **LEFT** | attivo-basso (comune GND) |
+| GP12–GP16 | Matrice — **righe** ROW0..ROW4 | output, pilotate LOW a turno |
+| GP17–GP19 | — liberi | |
+| GP20 | **I2C SDA** (CardKB 0x5F) | |
+| GP21 | **I2C SCL** (CardKB 0x5F) | |
+| GP22 | Joystick **PUSH** (centro) | attivo-basso |
+| GP23–GP25 | — liberi | |
+| GP26 | Joystick **UP** | attivo-basso |
+| GP27 | Joystick **RIGHT** | attivo-basso |
+| GP28 | **LED WS2812 DIN** | via R1 300 Ω |
+| GP29 | Joystick **DOWN** | attivo-basso |
+
+- **Matrice**: diodi COL2ROW → scansione riga LOW, colonna LOW = tasto premuto.
+- **Joystick**: comune a GND, ingressi pull-up interni, direzione premuta = LOW.
+
+> Correzioni verificate a mano (la doc/schematico erano errati): il LED è su **GP28** (non GP29);
+> il pinout del modulo joystick è **ruotato** → i valori qui sopra sono quelli reali sull'hardware.
 
 ---
 
