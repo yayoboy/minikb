@@ -1,6 +1,7 @@
-// minikb — firmware v1.1 (PlatformIO / arduino-pico + TinyUSB).
+// minikb — firmware v1.2 (PlatformIO / arduino-pico + TinyUSB).
 // USB HID 5x11 (3 layer) + joystick (frecce / mouse) + media + LED stato WS2812 + I2C CardKB.
 // v1.1: modalita' mouse (Fn tenuto 2s) -> joystick come mouse, solo USB.
+// v1.2: in modalita' mouse, Sym tenuto -> joystick = rotella (scroll verticale + orizzontale).
 //
 // Hardware confermato:
 //   Colonne COL0..COL10 = GP0..GP10   (lette, INPUT_PULLUP)
@@ -307,9 +308,11 @@ static void buildAndSend() {
     }
   }
 
-  // --- v1.1 modalita' mouse (solo USB): joystick = cursore, PUSH = click ---
+  // --- modalita' mouse (solo USB): joystick = cursore, PUSH = click, Sym = rotella ---
+  //   Sym tenuto -> joystick = rotella: su/giu' = scroll V, sx/dx = scroll H (cursore fermo).
   if (mouseMode) {
     static uint32_t lastMs = 0; static int accel = 0; static uint8_t lastBtn = 0;
+    static uint32_t lastScrollMs = 0; static int scrollAccel = 0;
     int dx = 0, dy = 0;
     if (joyState[2]) dx -= 1;   // LEFT
     if (joyState[3]) dx += 1;   // RIGHT
@@ -317,7 +320,27 @@ static void buildAndSend() {
     if (joyState[1]) dy += 1;   // DOWN
     uint8_t btn = joyState[4] ? (symActive ? MOUSE_BUTTON_RIGHT : MOUSE_BUTTON_LEFT) : 0;
     uint32_t now = millis();
-    if (now - lastMs >= 8 && usb_hid.ready()) {
+
+    if (symActive) {
+      // Sym tenuto: rotella. Convenzione HID wheel: V positivo = su, H positivo = destra.
+      accel = 0;
+      int sv = 0, sh = 0;
+      if (dy < 0) sv = 1; else if (dy > 0) sv = -1;   // UP -> su, DOWN -> giu'
+      if (dx > 0) sh = 1; else if (dx < 0) sh = -1;   // RIGHT -> destra, LEFT -> sinistra
+      if (sv || sh) {
+        if (now - lastScrollMs >= 60 && usb_hid.ready()) {  // throttle: rotella piu' lenta del cursore
+          lastScrollMs = now;
+          if (scrollAccel < 36) scrollAccel++;
+          int st = 1 + scrollAccel / 12; if (st > 3) st = 3; // lieve accelerazione (1..3 tacche)
+          usb_hid.mouseReport(RID_MOUSE, btn, 0, 0, sv * st, sh * st);
+          lastBtn = btn;
+        }
+      } else {
+        scrollAccel = 0;
+        if (btn != lastBtn) { usb_hid.mouseReport(RID_MOUSE, btn, 0, 0, 0, 0); lastBtn = btn; }
+      }
+    } else if (now - lastMs >= 8 && usb_hid.ready()) {
+      scrollAccel = 0;
       lastMs = now;
       if (dx || dy) {
         if (accel < 48) accel++;

@@ -137,7 +137,7 @@ Il firmware funzionante, **collaudato su hardware**, è in [`minikb_fw_v1/`](min
 
 - Tastiera **USB HID** 5×11 con 3 layer (BASE / Fn / Sym) mappati per il layout host.
 - **Joystick** TM-2028 → frecce + Invio.
-- **Modalità mouse** (v1.1, solo USB): Fn tenuto 2 s → joystick come mouse (cursore + click sx/dx).
+- **Modalità mouse** (solo USB): Fn tenuto 2 s → joystick come mouse (cursore + click sx/dx); **Sym tenuto** → joystick = rotella, scroll verticale/orizzontale (v1.2).
 - **LED di stato** WS2812 (mouse/Caps/Sym/Fn/Shift).
 - **Slave I2C compatibile CardKB** (`0x5F`) — 1 byte ASCII per tasto, in parallelo all'USB.
 

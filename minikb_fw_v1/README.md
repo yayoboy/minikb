@@ -1,4 +1,4 @@
-# minikb — firmware v1.1
+# minikb — firmware v1.2
 
 Firmware **collaudato su hardware** per la minikb: micro-tastiera ortholineare 5×11 su
 **RP2040**, con joystick a 5 vie. Sviluppato in **PlatformIO** (core arduino-pico
@@ -82,6 +82,7 @@ Tieni **Fn da solo per 2 secondi** per attivare/disattivare la modalità mouse (
 - **Cursore**: joystick, con **accelerazione** (preciso sui piccoli spostamenti, veloce sulle lunghe distanze).
 - **Click sinistro**: PUSH (centro joystick).
 - **Click destro**: **Sym + PUSH**.
+- **Scroll** (v1.2): tieni **Sym** e usa il joystick come rotella — su/giù = scroll **verticale**, sx/dx = scroll **orizzontale**. Il cursore resta fermo mentre tieni Sym.
 - La tastiera continua a scrivere normalmente.
 - Esci tenendo di nuovo **Fn 2 s**.
 
@@ -144,6 +145,7 @@ In alternativa copia `firmware.uf2` sull'RP2040 in modalità BOOTSEL (drive `RPI
 
 ## Changelog
 
+- **v1.2** — scroll in modalità mouse: con **Sym** tenuto il joystick diventa rotella (scroll verticale e orizzontale, cursore fermo).
 - **v1.1** — modalità mouse (joystick come mouse, Fn 2 s on/off; click sx = PUSH, dx = Sym+PUSH);
   layer Sym ampliato; editor con layout fisico, joystick integrato ed export SVG/PNG.
 - **v1.0** — tastiera USB HID (3 layer, layout Italian-Pro, scorciatoie), joystick frecce,
