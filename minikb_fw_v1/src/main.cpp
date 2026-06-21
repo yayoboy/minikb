@@ -77,13 +77,13 @@ static const uint16_t keymap[3][NROWS * NCOLS] = {
     HID_KEY_F11, HID_KEY_F12, TRNS, TRNS, TRNS, TRNS, TRNS, HID_KEY_PAGE_UP, HID_KEY_HOME, TRNS, HID_KEY_PRINT_SCREEN,
     TRNS, TRNS, CONS(CC_VOLDN), CONS(CC_VOLUP), TRNS, TRNS, TRNS, HID_KEY_PAGE_DOWN, HID_KEY_END, TRNS, TRNS,
     TRNS, CONS(CC_MUTE), CONS(CC_PLAY), CONS(CC_PREV), CONS(CC_NEXT), TRNS, TRNS, TRNS, TRNS, TRNS, TRNS,
-    FN, SYM, TRNS, TRNS, TRNS, TRNS, (F_GUI|F_SHIFT|HID_KEY_Z) /* Ripeti */, KG(HID_KEY_A) /* Sel.tutto */, KG(HID_KEY_X) /* Taglia */, KG(HID_KEY_C) /* Copia */, KG(HID_KEY_V) /* Incolla */,
+    FN, SYM, TRNS, TRNS, TRNS, TRNS, TRNS, KG(HID_KEY_A) /* Sel.tutto */, KG(HID_KEY_X) /* Taglia */, KG(HID_KEY_C) /* Copia */, KG(HID_KEY_V) /* Incolla */,
   },
-  // Layer 2 — Sym (Esc, simboli, modificatori, alcune scorciatoie)
+  // Layer 2 — Sym (Esc, simboli, modificatori)
   {
-    HID_KEY_ESCAPE, KS(0x1E) /* ! */, KS(0x1F) /* " */, KS(0x20) /* £ */, KS(0x21) /* $ */, KS(0x22) /* % */, KS(0x23) /* & */, KS(0x25) /* ( */, KS(0x26) /* ) */, 0x30 /* + */, HID_KEY_DELETE,
-    KA(0x64) /* ` */, KA(0x33) /* @ */, KA(0x34) /* # */, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, 0x38 /* - */, KA(0x33) /* @ */,
-    TRNS, HID_KEY_CONTROL_LEFT, HID_KEY_ALT_LEFT, HID_KEY_GUI_LEFT, TRNS, TRNS, KG(HID_KEY_T) /* nuova tab */, KG(HID_KEY_W) /* chiudi */, (F_GUI|HID_KEY_TAB) /* switch app */, NO, TRNS,
+    HID_KEY_ESCAPE, KS(0x1E) /* ! */, KS(0x1F) /* " */, KS(0x20) /* £ */, KS(0x21) /* $ */, KS(0x22) /* % */, KS(0x23) /* & */, KS(0x25) /* ( */, KS(0x26) /* ) */, KS(0x2D) /* ? */, HID_KEY_DELETE,
+    KA(0x64) /* ` */, KA(0x33) /* @ */, KA(0x34) /* # */, KS(0x31) /* § */, KSA(0x2F) /* { */, KSA(0x30) /* } */, KA(0x0A) /* ∞ */, KSA(0x31) /* ◊ */, 0x30 /* + */, 0x38 /* - */, KS(0x30) /* * */,
+    TRNS, HID_KEY_CONTROL_LEFT, HID_KEY_ALT_LEFT, HID_KEY_GUI_LEFT, KS(0x64) /* | */, 0x35 /* < */, KS(0x35) /* > */, KA(0x22) /* ~ */, TRNS, TRNS, TRNS,
     TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS,
     FN, SYM, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS, TRNS,
   },
@@ -143,9 +143,9 @@ static const uint8_t ascii_shift[NROWS*NCOLS] = {
   0,0,':','"','_',' ',0,'+','{','}','|',
 };
 static const uint8_t ascii_sym[NROWS*NCOLS] = {
-  0x1B,'!','"',0,'$','%','&','(',')','+',0x7F,   // £ non e' ASCII -> 0
-  '`','@','#',0,0,0,0,0,0,'-','@',
-  0,0,0,0,0,0,0,0,0,0,0,                          // Ctrl/Alt/GUI e scorciatoie -> nessun ASCII
+  0x1B,'!','"',0,'$','%','&','(',')','?',0x7F,    // £(idx3) non e' ASCII -> 0
+  '`','@','#',0,'{','}',0,0,'+','-','*',          // §,∞,◊ non ASCII -> 0
+  0,0,0,0,'|','<','>','~',0,0,0,                  // Ctrl/Alt/GUI -> nessun ASCII
   0,0,0,0,0,0,0,0,0,0,0,
   0,0,0,0,0,0,0,0,0,0,0,
 };
