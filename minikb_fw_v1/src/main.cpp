@@ -1,7 +1,9 @@
-// minikb — firmware v1.2 (PlatformIO / arduino-pico + TinyUSB).
+// minikb — firmware v1.3 (PlatformIO / arduino-pico + TinyUSB).
 // USB HID 5x11 (3 layer) + joystick (frecce / mouse) + media + LED stato WS2812 + I2C CardKB.
 // v1.1: modalita' mouse (Fn tenuto 2s) -> joystick come mouse, solo USB.
 // v1.2: in modalita' mouse, Sym tenuto -> joystick = rotella (scroll verticale + orizzontale).
+// v1.3: slave I2C CardKB a registri (pico-sdk) -> fix consegna byte; lo slave 'Wire' di
+//       arduino-pico mandava sempre 0x7F. CardKB ora rilevata da Meshtastic (Heltec V4).
 //
 // Hardware confermato:
 //   Colonne COL0..COL10 = GP0..GP10   (lette, INPUT_PULLUP)
@@ -14,7 +16,9 @@
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h>
 #include <Adafruit_NeoPixel.h>
-#include <Wire.h>
+#include <hardware/i2c.h>
+#include <hardware/gpio.h>
+#include <hardware/irq.h>
 
 // ---------------------------------------------------------------- pin hardware
 static const uint8_t COL_PINS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}; // GP0..GP10
@@ -131,6 +135,7 @@ static void setStatusLed(bool fnActive, bool symActive, bool shiftHeld) {
 #define I2C_ADDR 0x5F
 #define I2C_SDA  20
 #define I2C_SCL  21
+#define I2C_INST i2c0   // GP20=SDA, GP21=SCL -> blocco I2C0 dell'RP2040
 
 // Tabelle ASCII US (CardKB e' ASCII puro, indipendente dal layout host).
 static const uint8_t ascii_base[NROWS*NCOLS] = {
@@ -180,10 +185,27 @@ static void i2cPush(uint8_t b) {
   if (n == i2cqh) return;             // piena: scarta
   i2cq[i2cqt] = b; i2cqt = n;
 }
-static void onI2CRequest() {
-  uint8_t b = 0;
-  if (i2cqh != i2cqt) { b = i2cq[i2cqh]; i2cqh = (i2cqh + 1) % I2C_QSIZE; }
-  Wire.write(b);
+// Slave I2C CardKB implementato a registri (la lib pico_i2c_slave NON e' esposta dal
+// build arduino-pico). Gira in contesto IRQ sul blocco I2C0. Lo slave 'Wire' di
+// arduino-pico corrompeva il byte trasmesso: il master leggeva sempre 0x7F invece
+// dell'ASCII voluto (verificato sul log Meshtastic: ogni tasto -> kb 127). Qui sul
+// RD_REQ scriviamo il byte DIRETTAMENTE nell'hardware, come una CardKB vera.
+static void i2cSlaveIrq() {
+  i2c_hw_t *hw = i2c_get_hw(I2C_INST);
+  uint32_t stat = hw->intr_stat;
+  if (stat == 0) return;
+  if (stat & I2C_IC_INTR_STAT_R_TX_ABRT_BITS)   { hw->clr_tx_abrt; }
+  if (stat & I2C_IC_INTR_STAT_R_START_DET_BITS) { hw->clr_start_det; }
+  if (stat & I2C_IC_INTR_STAT_R_STOP_DET_BITS)  { hw->clr_stop_det; }
+  if (stat & I2C_IC_INTR_STAT_R_RX_FULL_BITS) {
+    (void)i2c_read_byte_raw(I2C_INST);          // CardKB non usa registri: scarta
+  }
+  if (stat & I2C_IC_INTR_STAT_R_RD_REQ_BITS) {
+    hw->clr_rd_req;                             // il master legge: 1 byte dalla coda (0x00 se vuota)
+    uint8_t b = 0;
+    if (i2cqh != i2cqt) { b = i2cq[i2cqh]; i2cqh = (i2cqh + 1) % I2C_QSIZE; }
+    i2c_write_byte_raw(I2C_INST, b);
+  }
 }
 
 // ---------------------------------------------------------------- matrice
@@ -375,11 +397,17 @@ void setup() {
   // joystick: ingressi con pull-up (attivi-bassi, comune GND)
   for (uint8_t i = 0; i < NJOY; i++) pinMode(JOY_PINS[i], INPUT_PULLUP);
 
-  // slave I2C CardKB su GP20/GP21, indirizzo 0x5F
-  Wire.setSDA(I2C_SDA);
-  Wire.setSCL(I2C_SCL);
-  Wire.begin(I2C_ADDR);
-  Wire.onRequest(onI2CRequest);
+  // slave I2C CardKB su GP20/GP21 (I2C0), indirizzo 0x5F — slave mode + IRQ a registri.
+  gpio_init(I2C_SDA); gpio_set_function(I2C_SDA, GPIO_FUNC_I2C); gpio_pull_up(I2C_SDA);
+  gpio_init(I2C_SCL); gpio_set_function(I2C_SCL, GPIO_FUNC_I2C); gpio_pull_up(I2C_SCL);
+  i2c_init(I2C_INST, 400 * 1000);
+  i2c_set_slave_mode(I2C_INST, true, I2C_ADDR);
+  i2c_get_hw(I2C_INST)->intr_mask =
+      I2C_IC_INTR_MASK_M_RX_FULL_BITS | I2C_IC_INTR_MASK_M_RD_REQ_BITS |
+      I2C_IC_INTR_MASK_M_TX_ABRT_BITS | I2C_IC_INTR_MASK_M_STOP_DET_BITS |
+      I2C_IC_INTR_MASK_M_START_DET_BITS;
+  irq_set_exclusive_handler(I2C0_IRQ, i2cSlaveIrq);
+  irq_set_enabled(I2C0_IRQ, true);
 
   led.begin();
   led.setBrightness(255);

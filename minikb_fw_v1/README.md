@@ -1,4 +1,4 @@
-# minikb — firmware v1.2
+# minikb — firmware v1.3
 
 Firmware **collaudato su hardware** per la minikb: micro-tastiera ortholineare 5×11 su
 **RP2040**, con joystick a 5 vie. Sviluppato in **PlatformIO** (core arduino-pico
@@ -8,7 +8,7 @@ Una sola tastiera, tre interfacce in parallelo:
 
 - ⌨️ **USB HID** — tastiera completa a 3 layer, mappata per il layout host **macOS "Italian - Pro"**.
 - 🕹️ **Joystick** TM-2028 → frecce (USB) e, in **modalità mouse**, cursore + click (v1.1).
-- 🔌 **Slave I2C compatibile M5Stack CardKB** (`0x5F`) — 1 byte ASCII per tasto.
+- 🔌 **Slave I2C compatibile M5Stack CardKB** (`0x5F`) — 1 byte ASCII per tasto. **Rilevata in automatico da Meshtastic** (collaudata su Heltec WiFi LoRa 32 V4, v1.3).
 - 💡 **LED WS2812** di stato (Caps / Sym / Fn / Shift / mouse).
 
 ## Anteprima del layout
@@ -109,7 +109,14 @@ with SMBus(1) as bus:
     if b: print(hex(b), chr(b) if 32 <= b < 127 else "")
 ```
 
-> L'I2C va testato con un **master esterno** (non verificabile via USB dal Mac).
+> **Collaudato** con master esterno: una **Heltec WiFi LoRa 32 V4** con Meshtastic rileva la
+> minikb come CardKB sul bus dell'OLED (SDA=GPIO17, SCL=GPIO18) e ne legge i tasti.
+>
+> **Nota implementativa (v1.3)**: lo slave I2C usa il blocco hardware **a registri**
+> (`i2c_set_slave_mode` + IRQ su `I2C0_IRQ`, byte scritto con `i2c_write_byte_raw` sul `RD_REQ`),
+> non lo slave del wrapper `Wire` di arduino-pico — che non consegnava i byte non-zero
+> (il master leggeva sempre `0x7F`). La lib `pico_i2c_slave` non è esposta dal build
+> arduino-pico, quindi l'handler è replicato inline in `src/main.cpp`.
 
 ---
 
@@ -145,6 +152,7 @@ In alternativa copia `firmware.uf2` sull'RP2040 in modalità BOOTSEL (drive `RPI
 
 ## Changelog
 
+- **v1.3** — slave I2C CardKB **a registri** (pico-sdk inline) al posto del `Wire` di arduino-pico, che mandava sempre `0x7F`: ora il byte ASCII viene consegnato correttamente. CardKB **rilevata da Meshtastic** e collaudata su **Heltec WiFi LoRa 32 V4** (bus OLED SDA=GPIO17 / SCL=GPIO18; lo scan I2C avviene solo al boot).
 - **v1.2** — scroll in modalità mouse: con **Sym** tenuto il joystick diventa rotella (scroll verticale e orizzontale, cursore fermo).
 - **v1.1** — modalità mouse (joystick come mouse, Fn 2 s on/off; click sx = PUSH, dx = Sym+PUSH);
   layer Sym ampliato; editor con layout fisico, joystick integrato ed export SVG/PNG.

@@ -140,6 +140,7 @@ Il firmware funzionante, **collaudato su hardware**, è in [`minikb_fw_v1/`](min
 - **Modalità mouse** (solo USB): Fn tenuto 2 s → joystick come mouse (cursore + click sx/dx); **Sym tenuto** → joystick = rotella, scroll verticale/orizzontale (v1.2).
 - **LED di stato** WS2812 (mouse/Caps/Sym/Fn/Shift).
 - **Slave I2C compatibile CardKB** (`0x5F`) — 1 byte ASCII per tasto, in parallelo all'USB.
+  Implementato **a registri** (pico-sdk inline) e **collaudato con Meshtastic** su Heltec WiFi LoRa 32 V4 (v1.3).
 
 ### Build e flash
 
@@ -212,7 +213,7 @@ Fn (raise): F1–F12 · frecce su I/J/K/L · media su Z/X/C/V · volume su W/S �
 | Firmware `minikb_fw_v1` — tastiera USB HID | ✅ compilato e collaudato su hardware |
 | Firmware `minikb_fw_v1` — joystick + LED | ✅ collaudati su hardware |
 | Firmware `minikb_fw_v1` — modalità mouse (v1.1) | ✅ collaudata su hardware |
-| Firmware `minikb_fw_v1` — I2C CardKB (0x5F) | ✅ implementato · ⏳ da collaudare con un master I2C |
+| Firmware `minikb_fw_v1` — I2C CardKB (0x5F) | ✅ collaudato — rilevato da Meshtastic su Heltec WiFi LoRa 32 V4 (v1.3) |
 
 ---
 
@@ -228,10 +229,10 @@ Verificato su hardware reale (test MicroPython, giugno 2026 — dettagli in [`do
 Risolto inoltre (firmware `minikb_fw_v1`):
 - [x] **Joystick TM-2028**: pinout reale verificato (UP=GP26, DOWN=GP29, LEFT=GP11, RIGHT=GP27, PUSH=GP22).
 - [x] **Frecce CardKB** `0xB4`–`0xB7` confermate sulla doc M5.
+- [x] **I2C CardKB collaudato** (v1.3): Meshtastic su **Heltec WiFi LoRa 32 V4** rileva la minikb come CardKB e ne legge i tasti. Richiesto lo slave I2C **a registri** (lo slave `Wire` di arduino-pico consegnava sempre `0x7F`).
 
 Ancora da chiudere:
 
-- [ ] Collaudare l'**I2C CardKB** con un master esterno (Raspberry Pi/ESP32 che legge da `0x5F`).
 - [ ] Lettere accentate sul canale I2C (non entrano in 1 byte ASCII; disponibili solo via USB).
 
 ---
